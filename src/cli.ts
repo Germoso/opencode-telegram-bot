@@ -16,11 +16,13 @@ const CLI_USAGE = `Usage:
   opencode-telegram status
   opencode-telegram stop
   opencode-telegram config
+  opencode-telegram bots up|down|status|logs <name>
 
 Notes:
   - No command defaults to start
   - start runs in foreground by default
-  - --daemon is supported for the installed runtime only`;
+  - --daemon is supported for the installed runtime only
+  - run \`opencode-telegram bots --help\` for multi-bot details`;
 
 const CLI_MESSAGES = {
   daemonRequiresInstalled:
@@ -243,6 +245,11 @@ async function runCli(argv: string[]): Promise<number> {
 
   if (parsedArgs.command === "config") {
     return runConfigCommand();
+  }
+
+  if (parsedArgs.command === "bots") {
+    const { runBotsCommand } = await import("./multi/commands.js");
+    return runBotsCommand(parsedArgs.botsArgs ?? []);
   }
 
   if (parsedArgs.command === "status") {

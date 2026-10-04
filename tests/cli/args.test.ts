@@ -101,4 +101,36 @@ describe("cli/args", () => {
       showHelp: true,
     });
   });
+
+  it("parses the bots command with a subcommand", () => {
+    const parsed = parseCliArgs(["bots", "up"]);
+
+    expect(parsed.command).toBe("bots");
+    expect(parsed.daemon).toBe(false);
+    expect(parsed.showHelp).toBe(false);
+    expect(parsed.botsArgs).toEqual(["up"]);
+  });
+
+  it("passes all remaining arguments through for bots", () => {
+    const parsed = parseCliArgs(["bots", "logs", "main"]);
+
+    expect(parsed.command).toBe("bots");
+    expect(parsed.botsArgs).toEqual(["logs", "main"]);
+  });
+
+  it("treats bots --help as a bots argument for the handler to interpret", () => {
+    const parsed = parseCliArgs(["bots", "--help"]);
+
+    expect(parsed.command).toBe("bots");
+    expect(parsed.showHelp).toBe(false);
+    expect(parsed.botsArgs).toEqual(["--help"]);
+  });
+
+  it("returns an empty botsArgs when bots has no subcommand", () => {
+    const parsed = parseCliArgs(["bots"]);
+
+    expect(parsed.command).toBe("bots");
+    expect(parsed.showHelp).toBe(false);
+    expect(parsed.botsArgs).toEqual([]);
+  });
 });

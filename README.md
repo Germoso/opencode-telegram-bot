@@ -50,6 +50,7 @@ Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`
 - **Docker support** — run the bot as a container while OpenCode stays on the host; see [Docker Deployment](#docker-deployment)
 - **Interactive file browser** — use `/ls` to browse files and directories inside the current project, open subdirectories, go back, and download files by tapping them
 - **Attach a file to your next prompt** — tap **📎 Attach to next prompt** on a text file in `/ls`, and it is sent to OpenCode together with your next message, once
+- **Multi-bot mode** — define several Telegram bots (each with its own token, chat, and isolated home) in one `bots.yaml` and supervise them with a single command; see [Multi-Bot Mode](#multi-bot-mode)
 
 Planned features currently in development are listed in [Current Task List](PRODUCT.md#current-task-list).
 
@@ -160,6 +161,63 @@ opencode-telegram config
 Any regular text message is sent as a prompt to the coding agent only when no blocking interaction is active. Voice/audio messages are transcribed and then sent as prompts when STT is configured.
 
 When the current project is a git repository, `/worktree` shows the existing worktrees for that repository. Status and pinned updates display the main project path with the active branch, and show a separate `Worktree` line when a linked worktree is selected.
+
+## Multi-Bot Mode
+
+Run **several Telegram bots from one command** — each with its own token, its own chat, and a fully isolated bot home, all supervised by a single foreground process. Typical use: one bot per chat/project so parallel coding tasks never share a conversation.
+
+### How it works
+
+- All bots are defined in a single `bots.yaml` file (the template is committed as `bots.example.yaml`).
+- `opencode-telegram bots up` validates the file, spawns **one child process per bot**, and stays in the foreground supervising them.
+- Every child gets its own isolated home at `<configDir>/bots/<name>` (`OPENCODE_TELEGRAM_HOME`), so `settings.json`, logs, and the followed session never leak between bots.
+- Children never restart the shared OpenCode server themselves (`OPENCODE_AUTO_RESTART_ENABLED=false`); the supervisor owns that decision.
+- If a bot crashes, the supervisor restarts it with backoff (**1s, 3s, 10s**); after 3 failed attempts it gives up on that bot (the others keep running) and `bots status` shows it as `failed`.
+- If **all** bots fail, the supervisor shuts itself down.
+- The supervisor writes its state to `<configDir>/run/bots-supervisor.json` so `bots down` and `bots status` work from any terminal.
+
+### Setup
+
+```bash
+cp bots.example.yaml bots.yaml   # then edit: tokens, user IDs, locale
+$EDITOR bots.yaml
+opencode-telegram bots up        # start everything (foreground; Ctrl+C stops all)
+```
+
+`bots.yaml` is gitignored because it contains bot tokens — never commit it. The template documents every field:
+
+```yaml
+openCode:
+  apiUrl: http://127.0.0.1:49374 # shared by all bots
+  serverVersion: v2
+bots:
+  - name: main # filesystem-safe: letters, digits, "-", "_"
+    token: "123456:ABC-DEF..." # from @BotFather
+    allowedUserId: 111111111 # your numeric Telegram user ID
+    locale: es # optional (default: en)
+  - name: dev
+    token: "789012:GHI-JKL..."
+    allowedUserId: 111111111
+```
+
+Config discovery: the CLI reads `./bots.yaml` from the current directory, or the path in the `OPENCODE_TELEGRAM_BOTS_CONFIG` environment variable (use it to run `up`/`down`/`status` from anywhere).
+
+### Commands
+
+| Command                       | Description                                             |
+| ----------------------------- | ------------------------------------------------------- |
+| `opencode-telegram bots up`   | Start the supervisor and all bots (foreground)          |
+| `opencode-telegram bots down` | Stop the supervisor and all bots (orphan-safe)          |
+| `opencode-telegram bots status` | Show supervisor + per-bot PID, status, and restarts   |
+| `opencode-telegram bots logs <name>` | Follow one bot's console log file                 |
+| `opencode-telegram bots --help` | Show multi-bot usage                                  |
+
+### Operational cautions
+
+- **One OpenCode server, many bots.** All bots talk to the same `openCode.apiUrl`, so they see the same projects and sessions. For parallel work on the same repository, give each bot its own git worktree (`/worktree` in each chat) so two runs never touch the same working tree.
+- **One session per bot.** Each bot remembers its own current session in its own `settings.json`; use `/new` in each chat to start independent conversations.
+- **Stale state.** If the machine crashed and `bots up` reports a stale supervisor, `bots up` cleans the orphaned children automatically; `bots down` is also safe to run twice.
+- **Two instances, not one?** Multi-bot mode is a supervisor over N isolated processes; it does not merge them into a single process. Memory cost is roughly one Node process per bot.
 
 ## Message History, Revert, and Fork
 

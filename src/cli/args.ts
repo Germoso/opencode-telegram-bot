@@ -1,6 +1,6 @@
 import type { RuntimeMode } from "../runtime/mode.js";
 
-export type CliCommand = "start" | "status" | "stop" | "config";
+export type CliCommand = "start" | "status" | "stop" | "config" | "bots";
 
 const CLI_MESSAGES = {
   unknownCommand: (value: string) => `Unknown command: ${value}`,
@@ -17,9 +17,11 @@ export interface ParsedCliArgs {
   daemon: boolean;
   showHelp: boolean;
   error?: string | undefined;
+  /** Subcommand and arguments after `bots` (e.g. ["up"], ["logs", "main"]). */
+  botsArgs?: string[];
 }
 
-const SUPPORTED_COMMANDS: readonly CliCommand[] = ["start", "status", "stop", "config"];
+const SUPPORTED_COMMANDS: readonly CliCommand[] = ["start", "status", "stop", "config", "bots"];
 
 function isCliCommand(value: string): value is CliCommand {
   return SUPPORTED_COMMANDS.includes(value as CliCommand);
@@ -58,6 +60,19 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
 
     command = firstArg;
     currentIndex = 1;
+  }
+
+  if (command === "bots") {
+    // The bots command takes free-form subcommands (up/down/status/logs <name>).
+    // Everything after `bots` is passed through; runBotsCommand interprets
+    // --help/-h itself so `bots --help` shows the bots-specific usage.
+    return {
+      command,
+      daemon,
+      mode,
+      showHelp: false,
+      botsArgs: args.slice(currentIndex),
+    };
   }
 
   while (currentIndex < args.length) {

@@ -1,0 +1,45 @@
+# Multi-bot configuration template.
+#
+# Copy to bots.yaml (gitignored - it contains bot tokens) and fill in:
+#   cp bots.example.yaml bots.yaml
+#
+# Start/stop everything with:
+#   opencode-telegram bots up       (foreground supervisor; Ctrl+C stops all)
+#   opencode-telegram bots down     (stop supervisor + all bots)
+#   opencode-telegram bots status   (supervisor + per-bot status)
+#   opencode-telegram bots logs <name>  (follow one bot's log)
+#
+# Anchor: everything derives from this file's directory:
+#   - state:  <configDir>/run/bots-supervisor.json
+#   - homes:  <configDir>/bots/<name>  (isolated OPENCODE_TELEGRAM_HOME per bot)
+# Run the CLI from the repo root (or set OPENCODE_TELEGRAM_BOTS_CONFIG).
+#
+# Operational caution: all bots share ONE OpenCode server, so they see the
+# same projects/sessions. For parallel work on the same repository, point
+# each bot at a different git worktree (/worktree in each chat) so two runs
+# never touch the same working tree.
+
+openCode:
+  # Shared OpenCode server used by every bot.
+  apiUrl: http://127.0.0.1:49374 # default: http://localhost:4096 (v1), http://127.0.0.1:49374 (v2)
+  serverVersion: v2 # v1 | v2 (default: v1)
+  # serverUsername: opencode # optional (default: opencode)
+  # serverPassword: ""       # optional, required for v2 (opencode service get password)
+
+model:
+  # Default model for every bot (children get OPENCODE_MODEL_PROVIDER / OPENCODE_MODEL_ID).
+  provider: opencode # default: opencode
+  id: big-pickle # default: big-pickle
+
+bots:
+  # One entry per Telegram bot. Names must be unique, filesystem-safe
+  # (letters, digits, "-", "_") because they become directory names.
+  - name: main
+    token: "123456:ABC-DEF..." # from @BotFather
+    allowedUserId: 111111111 # your numeric Telegram user ID (@userinfobot)
+    locale: es # optional: en | es | de | fr | ... (default: en)
+
+  - name: dev
+    token: "789012:GHI-JKL..."
+    allowedUserId: 111111111
+    locale: es

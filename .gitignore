@@ -9,6 +9,11 @@ yarn-error.log*
 # Environment
 .env
 
+# Multi-bot runtime (bots.example.yaml is the committed template)
+bots.yaml
+/run/bots-supervisor.json
+/bots/
+
 # OS
 .DS_Store
 Thumbs.db
